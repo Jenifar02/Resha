@@ -9,113 +9,148 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for Premium Modern UI
+# Custom CSS with Green, Yellow & White Theme
 st.markdown("""
 <style>
-    /* Main Background and Font */
+    /* Main Background & Fonts */
     .stApp {
-        background-color: #FAFAFA;
+        background-color: #FAFCFA;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     
-    /* Hide Default Headers */
+    /* Hide Default Header */
     header {visibility: hidden;}
     
-    /* Sidebar Custom Styling */
+    /* Sidebar Styling (Deep Emerald Green Theme) */
     div[data-testid="stSidebar"] {
-        background-color: #FFFFFF;
-        border-right: 1px solid #E2E8F0;
+        background-color: #064E3B !important;
+        border-right: 2px solid #10B981;
         padding-top: 1rem;
     }
     
+    /* Sidebar Text & Labels */
+    div[data-testid="stSidebar"] *, 
+    div[data-testid="stSidebar"] label {
+        color: #ECFDF5 !important;
+    }
+
     /* Brand Header */
     .brand-title {
-        font-size: 1.6rem;
+        font-size: 1.8rem;
         font-weight: 800;
-        color: #0F172A;
+        color: #FACC15 !important; /* Bright Yellow */
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-bottom: 0px;
+        margin-bottom: 2px;
     }
     
     .brand-subtitle {
         font-size: 0.85rem;
-        color: #64748B;
+        color: #A7F3D0 !important;
         font-weight: 500;
         margin-bottom: 1.5rem;
     }
     
-    /* Welcome Screen Styling */
+    /* Primary Buttons (Yellow Accent) */
+    div[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+        background-color: #FACC15 !important;
+        color: #064E3B !important;
+        font-weight: 700 !important;
+        border: none !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease;
+    }
+    div[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
+        background-color: #EAB308 !important;
+        box-shadow: 0 4px 12px rgba(250, 204, 21, 0.3);
+    }
+
+    /* Secondary Buttons */
+    div[data-testid="stSidebar"] .stButton > button {
+        background-color: #047857 !important;
+        color: #FFFFFF !important;
+        border: 1px solid #10B981 !important;
+        border-radius: 8px !important;
+    }
+    div[data-testid="stSidebar"] .stButton > button:hover {
+        background-color: #059669 !important;
+    }
+
+    /* Hero Banner */
     .hero-container {
         text-align: center;
         padding: 2.5rem 1rem 1.5rem 1rem;
-        max-width: 800px;
+        max-width: 850px;
         margin: 0 auto;
     }
     
     .hero-title {
-        font-size: 2.2rem;
-        font-weight: 700;
-        color: #0F172A;
+        font-size: 2.3rem;
+        font-weight: 800;
+        color: #065F46;
         letter-spacing: -0.02em;
     }
     
     .hero-subtitle {
         font-size: 1.05rem;
-        color: #64748B;
-        margin-top: 8px;
-        line-height: 1.5;
+        color: #374151;
+        margin-top: 10px;
+        line-height: 1.6;
     }
 
-    /* Feature Cards */
+    /* Feature Cards (White with Green Border & Yellow Accents) */
     .card-container {
         background: #FFFFFF;
-        border: 1px solid #E2E8F0;
+        border: 2px solid #E5E7EB;
+        border-top: 4px solid #10B981;
         border-radius: 12px;
-        padding: 20px;
+        padding: 22px;
         transition: all 0.25s ease;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         height: 100%;
     }
     
     .card-container:hover {
-        border-color: #3B82F6;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
-        transform: translateY(-2px);
+        border-color: #FACC15;
+        border-top: 4px solid #FACC15;
+        box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.15);
+        transform: translateY(-3px);
     }
     
     .card-icon {
-        font-size: 1.5rem;
+        font-size: 1.6rem;
         margin-bottom: 10px;
+        background: #FEF9C3;
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
     }
     
     .card-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #1E293B;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #064E3B;
         margin-bottom: 6px;
     }
     
     .card-desc {
-        font-size: 0.85rem;
-        color: #64748B;
-        line-height: 1.4;
+        font-size: 0.88rem;
+        color: #4B5563;
+        line-height: 1.45;
     }
 
-    /* Custom Input Fixes */
-    div[data-testid="stChatInput"] {
-        border-radius: 12px;
-    }
-    
-    /* Section Headers */
+    /* Sidebar Section Divider Headers */
     .sidebar-section {
         font-size: 0.75rem;
-        font-weight: 700;
-        color: #94A3B8;
-        letter-spacing: 0.05em;
+        font-weight: 800;
+        color: #FACC15 !important;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        margin-top: 1.2rem;
+        margin-top: 1.3rem;
         margin-bottom: 0.6rem;
     }
 </style>
@@ -128,7 +163,7 @@ if "messages" not in st.session_state:
 # Sidebar UI Implementation
 with st.sidebar:
     st.markdown('<div class="brand-title">🔬 Resha</div>', unsafe_allow_html=True)
-    st.markdown('<div class="brand-subtitle">Next-Gen Academic Research Assistant</div>', unsafe_allow_html=True)
+    st.markdown('<div class="brand-subtitle">AI Academic & Research Assistant</div>', unsafe_allow_html=True)
     
     # API Key Input
     api_key = st.text_input("🔑 Gemini API Key", type="password", placeholder="Paste key here...", help="Enter your Google Gemini API key to activate Resha.")
@@ -139,13 +174,12 @@ with st.sidebar:
 
     st.markdown('<div class="sidebar-section">RESEARCH DOCUMENTS</div>', unsafe_allow_html=True)
     uploaded_file = st.file_uploader(
-        "Upload PDF/DOCX for analysis", 
+        "Upload PDF/DOCX", 
         type=["pdf", "docx"], 
-        label_visibility="collapsed",
-        help="Upload up to 200MB file"
+        label_visibility="collapsed"
     )
     if uploaded_file:
-        st.info(f"📄 Loaded: **{uploaded_file.name}**")
+        st.success(f"📄 Loaded: **{uploaded_file.name}**")
 
     st.markdown('<div class="sidebar-section">CONTROLS</div>', unsafe_allow_html=True)
     if st.button("🗑️ Clear Chat History", use_container_width=True):
@@ -153,16 +187,16 @@ with st.sidebar:
         st.rerun()
 
     st.markdown('<div class="sidebar-section">SYSTEM DIAGNOSTICS</div>', unsafe_allow_html=True)
-    st.markdown("⚡ **Core Model:** `gemini-3.6-flash`")
+    st.markdown("⚡ **Core Engine:** `gemini-3.6-flash`")
     st.markdown("📑 **Document Indexing:** " + ("`Active`" if uploaded_file else "`Idle`"))
     st.markdown("🔒 **Security Mode:** `Strict Privacy`")
 
-# Hero/Welcome Header
+# Hero Header
 if not st.session_state.messages:
     st.markdown("""
         <div class="hero-container">
             <div class="hero-title">How can Resha accelerate your research today?</div>
-            <div class="hero-subtitle">Upload your research papers, extract methodologies, synthesize literature, or ask complex technical queries.</div>
+            <div class="hero-subtitle">Upload research papers, extract methodologies, synthesize literature, or ask complex technical queries with ease.</div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -219,7 +253,7 @@ if user_prompt := st.chat_input("Ask Resha a research question or query..."):
                     client = genai.Client(api_key=api_key)
                     response = client.models.generate_content(
                         model="gemini-3.6-flash",
-                        contents=f"You are Resha, a highly capable academic AI research assistant. Provide concise, structured, professional, and well-cited answers to the following query: {user_prompt}"
+                        contents=f"You are Resha, an academic AI research assistant. Provide concise, structured, professional, and well-cited answers to the following query: {user_prompt}"
                     )
                     bot_reply = response.text
                     st.markdown(bot_reply)
