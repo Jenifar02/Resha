@@ -27,7 +27,7 @@ else:
             with st.spinner("Analyzing research query..."):
                 try:
                     response = client.models.generate_content(
-                        model="gemini-1.5-flash",
+                        model="gemini-2.5-flash",
                         contents=f"You are an academic research assistant: {user_prompt}"
                     )
                     bot_reply = response.text
