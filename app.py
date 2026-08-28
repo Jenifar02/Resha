@@ -23,10 +23,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Preferred model order. The app tries each in turn (and remembers whichever
-# one last worked) so a single deprecated / rate-limited model never breaks
-# the whole chatbot.
-CANDIDATE_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"]
+# Preferred Gemini API models
+CANDIDATE_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
 
 # ---------------------------------------------------------------------------
 # Custom UI Styling (Green, Yellow & White Theme)
@@ -38,7 +36,7 @@ st.markdown("""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* Hide Top Header Line */
+    /* Hide Header */
     header {visibility: hidden;}
 
     /* Sidebar Custom Styling */
@@ -152,39 +150,10 @@ st.markdown("""
     }
 
     .sidebar-footer {
-        position: fixed;
-        bottom: 12px;
         font-size: 0.72rem;
         color: #A7F3D0 !important;
         opacity: 0.75;
-    }
-
-    /* -----------------------------------------------------------------
-       Visible "open sidebar" button — this is the small arrow Streamlit
-       renders in the top-left corner once the sidebar is collapsed. By
-       default it's a faint grey icon that's easy to miss; restyle it as
-       a clear branded circular button so it's obvious how to bring the
-       sidebar back.
-    ----------------------------------------------------------------- */
-    [data-testid="collapsedControl"] {
-        background-color: #064E3B !important;
-        border: 2px solid #FACC15 !important;
-        border-radius: 50% !important;
-        padding: 6px !important;
-        top: 14px !important;
-        left: 14px !important;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
-        transition: transform 0.15s ease, border-color 0.15s ease;
-        z-index: 999999 !important;
-    }
-
-    [data-testid="collapsedControl"]:hover {
-        transform: scale(1.1);
-        border-color: #FFFFFF !important;
-    }
-
-    [data-testid="collapsedControl"] svg {
-        fill: #FACC15 !important;
+        margin-top: 2rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -195,8 +164,6 @@ st.markdown("""
 defaults = {
     "messages": [],
     "user_name": "Researcher",
-    "chat": None,
-    "chat_model": None,
     "document_name": None,
     "document_text": None,
 }
@@ -216,60 +183,40 @@ def get_time_greeting():
     else:
         return "Good evening"
 
-
 def extract_text_from_upload(uploaded_file):
-    """Pull raw text out of an uploaded PDF or DOCX so it can be used as
-    context for the chat. Returns '' if extraction fails or the right
-    library isn't installed."""
     name = uploaded_file.name.lower()
     try:
         if name.endswith(".pdf"):
             if pypdf is None:
-                st.sidebar.error("PDF support needs the 'pypdf' package (see requirements.txt).")
+                st.sidebar.error("PDF support needs the 'pypdf' package.")
                 return ""
             reader = pypdf.PdfReader(uploaded_file)
             return "\n".join(page.extract_text() or "" for page in reader.pages).strip()
         elif name.endswith(".docx"):
             if DocxDocument is None:
-                st.sidebar.error("DOCX support needs the 'python-docx' package (see requirements.txt).")
+                st.sidebar.error("DOCX support needs the 'python-docx' package.")
                 return ""
             doc = DocxDocument(uploaded_file)
             return "\n".join(p.text for p in doc.paragraphs).strip()
     except Exception as e:
-        st.sidebar.error(f"Couldn't read that file: {e}")
+        st.sidebar.error(f"Couldn't read file: {e}")
     return ""
-
 
 def build_system_instruction():
     instruction = (
         "You are Resha, a professional academic and research assistant. "
         "Provide thorough, well-structured, accurate answers to research questions. "
-        "Use clear headings and concise paragraphs where helpful. "
         "At the end of every response, include a dedicated section titled "
         "'**Key References & Sources**' listing relevant academic literature or "
-        "credible sources the user can consult for verification."
+        "credible sources for verification."
     )
     if st.session_state.document_text:
         instruction += (
-            f"\n\nThe user has uploaded a reference document titled "
-            f"'{st.session_state.document_name}'. Use the following extracted "
-            f"content as additional context whenever it's relevant to their "
-            f"question:\n\n{st.session_state.document_text[:12000]}"
+            f"\n\nThe user uploaded a reference document titled "
+            f"'{st.session_state.document_name}'. Context extracted:\n\n"
+            f"{st.session_state.document_text[:12000]}"
         )
     return instruction
-
-
-def history_to_genai_content(messages):
-    history = []
-    for m in messages:
-        role = "user" if m["role"] == "user" else "model"
-        history.append(types.Content(role=role, parts=[types.Part(text=m["content"])]))
-    return history
-
-
-def reset_chat_session():
-    st.session_state.chat = None
-    st.session_state.chat_model = None
 
 # ---------------------------------------------------------------------------
 # Sidebar
@@ -284,7 +231,6 @@ with st.sidebar:
 
     if st.button("✨ New Conversation", use_container_width=True, type="primary"):
         st.session_state.messages = []
-        reset_chat_session()
         st.rerun()
 
     st.markdown('<div class="sidebar-section">RESEARCH DOCUMENTS</div>', unsafe_allow_html=True)
@@ -296,21 +242,19 @@ with st.sidebar:
                 extracted = extract_text_from_upload(uploaded_file)
             st.session_state.document_name = uploaded_file.name
             st.session_state.document_text = extracted
-            reset_chat_session()  # rebuild so the new context is included
+            
         if st.session_state.document_text:
             st.success(f"📄 Loaded: **{uploaded_file.name}**")
-            st.caption(f"{len(st.session_state.document_text):,} characters available as context")
+            st.caption(f"{len(st.session_state.document_text):,} characters extracted")
         else:
             st.warning(f"📄 **{uploaded_file.name}** uploaded, but no text could be extracted.")
     elif st.session_state.document_name is not None:
         st.session_state.document_name = None
         st.session_state.document_text = None
-        reset_chat_session()
 
     st.markdown('<div class="sidebar-section">CONTROLS</div>', unsafe_allow_html=True)
     if st.button("🗑️ Clear Chat History", use_container_width=True):
         st.session_state.messages = []
-        reset_chat_session()
         st.rerun()
 
     st.markdown('<div class="sidebar-footer">Powered by Google Gemini</div>', unsafe_allow_html=True)
@@ -368,7 +312,7 @@ if user_prompt := st.chat_input("Ask Resha a research query..."):
     api_key = st.secrets.get("GEMINI_API_KEY")
 
     if not api_key:
-        st.error("API Key missing! Please make sure GEMINI_API_KEY is configured in Streamlit Secrets.")
+        st.error("API Key missing! Please configure GEMINI_API_KEY in Streamlit Secrets.")
         st.stop()
 
     st.session_state.messages.append({"role": "user", "content": user_prompt})
@@ -379,40 +323,34 @@ if user_prompt := st.chat_input("Ask Resha a research query..."):
         placeholder = st.empty()
         with st.spinner("Resha is synthesizing research and fetching sources..."):
             client = genai.Client(api_key=api_key)
-            history_for_new_session = st.session_state.messages[:-1]
 
-            # Try the model that worked last time first, then fall back
-            # through the rest of the candidate list if needed.
-            models_to_try = []
-            if st.session_state.chat_model:
-                models_to_try.append(st.session_state.chat_model)
-            models_to_try += [m for m in CANDIDATE_MODELS if m not in models_to_try]
+            # Reconstruct entire conversation payload safely for stateless Execution
+            contents = []
+            for msg in st.session_state.messages:
+                role = "user" if msg["role"] == "user" else "model"
+                contents.append(types.Content(role=role, parts=[types.Part(text=msg["content"])]))
 
             bot_reply, last_err = None, None
-            for model_id in models_to_try:
-                try:
-                    if st.session_state.chat is None or st.session_state.chat_model != model_id:
-                        st.session_state.chat = client.chats.create(
-                            model=model_id,
-                            config=types.GenerateContentConfig(
-                                system_instruction=build_system_instruction()
-                            ),
-                            history=history_to_genai_content(history_for_new_session),
-                        )
-                        st.session_state.chat_model = model_id
 
-                    response = st.session_state.chat.send_message(user_prompt)
+            for model_id in CANDIDATE_MODELS:
+                try:
+                    response = client.models.generate_content(
+                        model=model_id,
+                        contents=contents,
+                        config=types.GenerateContentConfig(
+                            system_instruction=build_system_instruction()
+                        )
+                    )
                     if response and response.text:
                         bot_reply = response.text
                         break
                 except Exception as e:
                     last_err = e
-                    reset_chat_session()
                     continue
 
         if bot_reply:
             placeholder.markdown(bot_reply)
             st.session_state.messages.append({"role": "assistant", "content": bot_reply})
         else:
-            placeholder.error(f"Unable to connect to Gemini API. Error details: {last_err}")
-            st.session_state.messages.pop()  # drop the unanswered user turn
+            placeholder.error(f"Unable to connect to Gemini API. Details: {last_err}")
+            st.session_state.messages.pop()
