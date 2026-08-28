@@ -1,6 +1,7 @@
 import datetime
 import streamlit as st
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 try:
     import pypdf
@@ -20,6 +21,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Supported Active Models Array
+CANDIDATE_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash"
+]
+
 # Custom UI Styling
 st.markdown("""
 <style>
@@ -28,8 +35,13 @@ st.markdown("""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    header {visibility: hidden;}
+    /* Ensure Streamlit Default Sidebar Toggle Icon Remains Fully Visible */
+    [data-testid="stHeader"] {
+        background-color: transparent !important;
+        z-index: 1000;
+    }
 
+    /* Sidebar Styling */
     div[data-testid="stSidebar"] {
         background-color: #064E3B !important;
         border-right: 3px solid #10B981;
@@ -66,9 +78,10 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
+    /* Hero Banner UI */
     .hero-container {
         text-align: center;
-        padding: 2rem 1rem 1.5rem 1rem;
+        padding: 1.5rem 1rem 1.5rem 1rem;
         max-width: 850px;
         margin: 0 auto;
     }
@@ -86,6 +99,7 @@ st.markdown("""
         line-height: 1.6;
     }
 
+    /* Feature Cards */
     .card-container {
         background: #FFFFFF;
         border: 2px solid #E5E7EB;
@@ -146,7 +160,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Session State
+# Session State Initialization
 defaults = {
     "messages": [],
     "user_name": "Researcher",
@@ -184,6 +198,20 @@ def extract_text_from_upload(uploaded_file):
     except Exception as e:
         st.sidebar.error(f"Error reading file: {e}")
     return ""
+
+def build_system_instruction():
+    instruction = (
+        "You are Resha, a professional academic and research assistant. "
+        "Provide thorough, well-structured, accurate answers to research questions. "
+        "At the end of every response, include a dedicated section titled "
+        "'**Key References & Sources**' listing relevant academic literature or credible sources."
+    )
+    if st.session_state.document_text:
+        instruction += (
+            f"\n\nContext from loaded document '{st.session_state.document_name}':\n\n"
+            f"{st.session_state.document_text[:12000]}"
+        )
+    return instruction
 
 # Sidebar UI
 with st.sidebar:
@@ -224,7 +252,7 @@ with st.sidebar:
 
     st.markdown('<div class="sidebar-footer">Powered by Google Gemini</div>', unsafe_allow_html=True)
 
-# Hero UI
+# Hero Welcome Section
 if not st.session_state.messages:
     greeting = get_time_greeting()
     st.markdown(f"""
@@ -260,13 +288,13 @@ if not st.session_state.messages:
             </div>
         """, unsafe_allow_html=True)
 
-# Render Existing Chat History
+# Render Existing Chat
 for message in st.session_state.messages:
     avatar = "🔬" if message["role"] == "assistant" else "🧑‍🎓"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
-# User Input Handling
+# User Chat Input Handling
 if user_prompt := st.chat_input("Ask Resha a research query..."):
     api_key = st.secrets.get("GEMINI_API_KEY")
 
@@ -281,34 +309,34 @@ if user_prompt := st.chat_input("Ask Resha a research query..."):
     with st.chat_message("assistant", avatar="🔬"):
         placeholder = st.empty()
         with st.spinner("Resha is synthesizing research..."):
-            try:
-                genai.configure(api_key=api_key)
-                
-                # Instruction and Context Setup
-                system_instruction = "You are Resha, a professional academic and research assistant. Provide thorough, well-structured, accurate answers. Include a '**Key References & Sources**' section at the end."
-                if st.session_state.document_text:
-                    system_instruction += f"\n\nDocument Context ({st.session_state.document_name}):\n" + st.session_state.document_text[:10000]
+            client = genai.Client(api_key=api_key)
 
-                # Direct API Call with Stable Model
-                model = genai.GenerativeModel(
-                    model_name="gemini-1.5-flash",
-                    system_instruction=system_instruction
-                )
-                
-                # Build chat history for API
-                chat_history = []
-                for msg in st.session_state.messages[:-1]:
-                    role = "user" if msg["role"] == "user" else "model"
-                    chat_history.append({"role": role, "parts": [msg["content"]]})
+            contents = []
+            for msg in st.session_state.messages:
+                role = "user" if msg["role"] == "user" else "model"
+                contents.append(types.Content(role=role, parts=[types.Part(text=msg["content"])]))
 
-                chat = model.start_chat(history=chat_history)
-                response = chat.send_message(user_prompt)
+            bot_reply, last_err = None, None
 
-                if response and response.text:
-                    placeholder.markdown(response.text)
-                    st.session_state.messages.append({"role": "assistant", "content": response.text})
-                else:
-                    placeholder.error("No response generated from model.")
-            except Exception as ex:
-                placeholder.error(f"API Error Details: {ex}")
-                st.session_state.messages.pop()
+            for model_id in CANDIDATE_MODELS:
+                try:
+                    response = client.models.generate_content(
+                        model=model_id,
+                        contents=contents,
+                        config=types.GenerateContentConfig(
+                            system_instruction=build_system_instruction()
+                        )
+                    )
+                    if response and response.text:
+                        bot_reply = response.text
+                        break
+                except Exception as e:
+                    last_err = e
+                    continue
+
+        if bot_reply:
+            placeholder.markdown(bot_reply)
+            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+        else:
+            placeholder.error(f"API Connection Error: {last_err}")
+            st.session_state.messages.pop()
