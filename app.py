@@ -13,7 +13,7 @@ try:
 except ImportError:
     DocxDocument = None
 
-# Page Configuration
+# Page Configuration - Standard Light Theme
 st.set_page_config(
     page_title="Resha - AI Academic & Research Assistant",
     page_icon="🔬",
@@ -21,144 +21,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Supported Active Models Array
+# Priority model fallbacks requested by API error message
 CANDIDATE_MODELS = [
+    "gemini-3.6-flash",
     "gemini-2.5-flash",
     "gemini-2.0-flash"
 ]
-
-# Custom UI Styling
-st.markdown("""
-<style>
-    .stApp {
-        background-color: #FAFCFA;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-
-    /* Ensure Streamlit Default Sidebar Toggle Icon Remains Fully Visible */
-    [data-testid="stHeader"] {
-        background-color: transparent !important;
-        z-index: 1000;
-    }
-
-    /* Sidebar Styling */
-    div[data-testid="stSidebar"] {
-        background-color: #064E3B !important;
-        border-right: 3px solid #10B981;
-        padding-top: 1rem;
-    }
-
-    div[data-testid="stSidebar"] *,
-    div[data-testid="stSidebar"] label {
-        color: #ECFDF5 !important;
-    }
-
-    .brand-title {
-        font-size: 1.8rem;
-        font-weight: 800;
-        color: #FACC15 !important;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 2px;
-    }
-
-    .brand-subtitle {
-        font-size: 0.85rem;
-        color: #A7F3D0 !important;
-        font-weight: 500;
-        margin-bottom: 1.5rem;
-    }
-
-    div[data-testid="stSidebar"] .stButton > button[kind="primary"] {
-        background-color: #FACC15 !important;
-        color: #064E3B !important;
-        font-weight: 700 !important;
-        border: none !important;
-        border-radius: 8px !important;
-    }
-
-    /* Hero Banner UI */
-    .hero-container {
-        text-align: center;
-        padding: 1.5rem 1rem 1.5rem 1rem;
-        max-width: 850px;
-        margin: 0 auto;
-    }
-
-    .hero-greeting {
-        font-size: 2.3rem;
-        font-weight: 800;
-        color: #065F46;
-    }
-
-    .hero-subtitle {
-        font-size: 1.1rem;
-        color: #374151;
-        margin-top: 10px;
-        line-height: 1.6;
-    }
-
-    /* Feature Cards */
-    .card-container {
-        background: #FFFFFF;
-        border: 2px solid #E5E7EB;
-        border-top: 4px solid #10B981;
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        height: 100%;
-    }
-
-    .card-container:hover {
-        border-color: #FACC15;
-        border-top: 4px solid #FACC15;
-        transform: translateY(-3px);
-    }
-
-    .card-icon {
-        font-size: 1.5rem;
-        margin-bottom: 10px;
-        background: #FEF9C3;
-        width: 42px;
-        height: 42px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-    }
-
-    .card-title {
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: #064E3B;
-        margin-bottom: 6px;
-    }
-
-    .card-desc {
-        font-size: 0.88rem;
-        color: #4B5563;
-        line-height: 1.45;
-    }
-
-    .sidebar-section {
-        font-size: 0.75rem;
-        font-weight: 800;
-        color: #FACC15 !important;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        margin-top: 1.3rem;
-        margin-bottom: 0.6rem;
-    }
-
-    .sidebar-footer {
-        font-size: 0.72rem;
-        color: #A7F3D0 !important;
-        opacity: 0.75;
-        margin-top: 2rem;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # Session State Initialization
 defaults = {
@@ -213,12 +81,13 @@ def build_system_instruction():
         )
     return instruction
 
-# Sidebar UI
+# Standard Streamlit Sidebar (No custom CSS blocking visibility)
 with st.sidebar:
-    st.markdown('<div class="brand-title">🔬 Resha</div>', unsafe_allow_html=True)
-    st.markdown('<div class="brand-subtitle">AI Academic & Research Assistant</div>', unsafe_allow_html=True)
+    st.title("🔬 Resha")
+    st.caption("AI Academic & Research Assistant")
+    st.divider()
 
-    user_name_input = st.text_input("👤 Your Profile Name", value=st.session_state.user_name)
+    user_name_input = st.text_input("👤 Your Name", value=st.session_state.user_name)
     if user_name_input:
         st.session_state.user_name = user_name_input
 
@@ -226,8 +95,8 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-    st.markdown('<div class="sidebar-section">RESEARCH DOCUMENTS</div>', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("Upload PDF/DOCX", type=["pdf", "docx"], label_visibility="collapsed")
+    st.subheader("Document Context")
+    uploaded_file = st.file_uploader("Upload PDF/DOCX", type=["pdf", "docx"])
 
     if uploaded_file is not None:
         if st.session_state.document_name != uploaded_file.name:
@@ -238,63 +107,39 @@ with st.sidebar:
             
         if st.session_state.document_text:
             st.success(f"📄 Loaded: **{uploaded_file.name}**")
-            st.caption(f"{len(st.session_state.document_text):,} characters ready as context")
+            st.caption(f"{len(st.session_state.document_text):,} characters loaded")
         else:
-            st.warning(f"📄 **{uploaded_file.name}** uploaded, but text extraction failed.")
+            st.warning(f"📄 Text extraction failed.")
     elif st.session_state.document_name is not None:
         st.session_state.document_name = None
         st.session_state.document_text = None
 
-    st.markdown('<div class="sidebar-section">CONTROLS</div>', unsafe_allow_html=True)
-    if st.button("🗑️ Clear Chat History", use_container_width=True):
+    st.divider()
+    if st.button("🗑️ Clear History", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
-    st.markdown('<div class="sidebar-footer">Powered by Google Gemini</div>', unsafe_allow_html=True)
-
-# Hero Welcome Section
+# Main Interface Welcome
 if not st.session_state.messages:
     greeting = get_time_greeting()
-    st.markdown(f"""
-        <div class="hero-container">
-            <div class="hero-greeting">{greeting}, {st.session_state.user_name}.</div>
-            <div class="hero-subtitle">Where shall we push the boundaries of knowledge today? Upload papers, analyze citations, or synthesize complex research topics.</div>
-        </div>
-    """, unsafe_allow_html=True)
+    st.title(f"{greeting}, {st.session_state.user_name}.")
+    st.markdown("Where shall we push the boundaries of knowledge today?")
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown("""
-            <div class="card-container">
-                <div class="card-icon">📚</div>
-                <div class="card-title">Evidence Synthesis</div>
-                <div class="card-desc">Extract structured literature insights, academic references, and reliable citations.</div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.info("**📚 Evidence Synthesis**\n\nExtract literature insights and citations.")
     with col2:
-        st.markdown("""
-            <div class="card-container">
-                <div class="card-icon">🧬</div>
-                <div class="card-title">Concept & Math</div>
-                <div class="card-desc">Deconstruct intricate formulas, algorithms, and methodologies with step-by-step clarity.</div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.info("**🧬 Concept & Math**\n\nDeconstruct complex formulas & algorithms.")
     with col3:
-        st.markdown("""
-            <div class="card-container">
-                <div class="card-icon">🖋️</div>
-                <div class="card-title">Academic Writing</div>
-                <div class="card-desc">Refine research abstracts, thesis frameworks, and academic language effectively.</div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.info("**🖋️ Academic Writing**\n\nRefine research abstracts and language.")
 
-# Render Existing Chat
+# Render Chat
 for message in st.session_state.messages:
     avatar = "🔬" if message["role"] == "assistant" else "🧑‍🎓"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
-# User Chat Input Handling
+# Handle Chat Input
 if user_prompt := st.chat_input("Ask Resha a research query..."):
     api_key = st.secrets.get("GEMINI_API_KEY")
 
@@ -308,8 +153,20 @@ if user_prompt := st.chat_input("Ask Resha a research query..."):
 
     with st.chat_message("assistant", avatar="🔬"):
         placeholder = st.empty()
-        with st.spinner("Resha is synthesizing research..."):
+        with st.spinner("Resha is thinking..."):
             client = genai.Client(api_key=api_key)
+
+            # 1. Dynamically find available models from API if candidate fails
+            target_models = list(CANDIDATE_MODELS)
+            try:
+                available_models = [m.name.replace("models/", "") for m in client.models.list()]
+                # Add flash models found in user's API key scope
+                flash_models = [m for m in available_models if "flash" in m]
+                for fm in flash_models:
+                    if fm not in target_models:
+                        target_models.append(fm)
+            except Exception:
+                pass
 
             contents = []
             for msg in st.session_state.messages:
@@ -318,7 +175,8 @@ if user_prompt := st.chat_input("Ask Resha a research query..."):
 
             bot_reply, last_err = None, None
 
-            for model_id in CANDIDATE_MODELS:
+            # 2. Iterate through candidate models dynamically
+            for model_id in target_models:
                 try:
                     response = client.models.generate_content(
                         model=model_id,
@@ -338,5 +196,5 @@ if user_prompt := st.chat_input("Ask Resha a research query..."):
             placeholder.markdown(bot_reply)
             st.session_state.messages.append({"role": "assistant", "content": bot_reply})
         else:
-            placeholder.error(f"API Connection Error: {last_err}")
+            placeholder.error(f"API Error: {last_err}")
             st.session_state.messages.pop()
