@@ -13,9 +13,7 @@ try:
 except ImportError:
     DocxDocument = None
 
-# ---------------------------------------------------------------------------
 # Page Configuration
-# ---------------------------------------------------------------------------
 st.set_page_config(
     page_title="Resha - AI Academic & Research Assistant",
     page_icon="🔬",
@@ -23,12 +21,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Preferred Gemini API models
-CANDIDATE_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+# Explicit model list with 'models/' prefix for new SDK compatibility
+CANDIDATE_MODELS = [
+    "models/gemini-2.5-flash",
+    "models/gemini-2.0-flash",
+    "models/gemini-1.5-flash"
+]
 
-# ---------------------------------------------------------------------------
-# Custom UI Styling (Green, Yellow & White Theme)
-# ---------------------------------------------------------------------------
+# Custom UI Styling
 st.markdown("""
 <style>
     .stApp {
@@ -36,10 +36,8 @@ st.markdown("""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* Hide Header */
     header {visibility: hidden;}
 
-    /* Sidebar Custom Styling */
     div[data-testid="stSidebar"] {
         background-color: #064E3B !important;
         border-right: 3px solid #10B981;
@@ -76,7 +74,6 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
-    /* Hero Banner UI */
     .hero-container {
         text-align: center;
         padding: 2rem 1rem 1.5rem 1rem;
@@ -97,7 +94,6 @@ st.markdown("""
         line-height: 1.6;
     }
 
-    /* Card Containers */
     .card-container {
         background: #FFFFFF;
         border: 2px solid #E5E7EB;
@@ -158,9 +154,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------------------------------------------------------------------
 # Session State Initialization
-# ---------------------------------------------------------------------------
 defaults = {
     "messages": [],
     "user_name": "Researcher",
@@ -171,9 +165,6 @@ for key, value in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 def get_time_greeting():
     current_hour = datetime.datetime.now().hour
     if current_hour < 12:
@@ -218,9 +209,7 @@ def build_system_instruction():
         )
     return instruction
 
-# ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
+# Sidebar UI
 with st.sidebar:
     st.markdown('<div class="brand-title">🔬 Resha</div>', unsafe_allow_html=True)
     st.markdown('<div class="brand-subtitle">AI Academic & Research Assistant</div>', unsafe_allow_html=True)
@@ -259,9 +248,7 @@ with st.sidebar:
 
     st.markdown('<div class="sidebar-footer">Powered by Google Gemini</div>', unsafe_allow_html=True)
 
-# ---------------------------------------------------------------------------
-# Initial Hero Welcome UI
-# ---------------------------------------------------------------------------
+# Hero UI
 if not st.session_state.messages:
     greeting = get_time_greeting()
     st.markdown(f"""
@@ -297,17 +284,13 @@ if not st.session_state.messages:
             </div>
         """, unsafe_allow_html=True)
 
-# ---------------------------------------------------------------------------
-# Render Existing Chat History
-# ---------------------------------------------------------------------------
+# Render Chat History
 for message in st.session_state.messages:
     avatar = "🔬" if message["role"] == "assistant" else "🧑‍🎓"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
-# ---------------------------------------------------------------------------
-# User Chat Submission Handling
-# ---------------------------------------------------------------------------
+# Input Handling
 if user_prompt := st.chat_input("Ask Resha a research query..."):
     api_key = st.secrets.get("GEMINI_API_KEY")
 
@@ -324,7 +307,6 @@ if user_prompt := st.chat_input("Ask Resha a research query..."):
         with st.spinner("Resha is synthesizing research and fetching sources..."):
             client = genai.Client(api_key=api_key)
 
-            # Reconstruct entire conversation payload safely for stateless Execution
             contents = []
             for msg in st.session_state.messages:
                 role = "user" if msg["role"] == "user" else "model"
