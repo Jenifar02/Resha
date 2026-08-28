@@ -27,11 +27,12 @@ else:
             with st.spinner("Analyzing research query..."):
                 try:
                     response = client.models.generate_content(
-                        model="gemini-2.5-flash",
+                        model="gemini-3.6-flash",
                         contents=f"You are an academic research assistant: {user_prompt}"
                     )
                     bot_reply = response.text
                     st.markdown(bot_reply)
                     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
                 except Exception as e:
+                    st.error(f"Error details: {e}")
                     st.error(f"Error details: {e}")
