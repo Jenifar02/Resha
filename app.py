@@ -13,7 +13,7 @@ try:
 except ImportError:
     DocxDocument = None
 
-# Page Configuration - Standard Light Theme
+# Page Configuration
 st.set_page_config(
     page_title="Resha - AI Academic & Research Assistant",
     page_icon="🔬",
@@ -21,7 +21,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Priority model fallbacks requested by API error message
+# Active Model Candidates
 CANDIDATE_MODELS = [
     "gemini-3.6-flash",
     "gemini-2.5-flash",
@@ -81,7 +81,7 @@ def build_system_instruction():
         )
     return instruction
 
-# Standard Streamlit Sidebar (No custom CSS blocking visibility)
+# Sidebar UI
 with st.sidebar:
     st.title("🔬 Resha")
     st.caption("AI Academic & Research Assistant")
@@ -109,7 +109,7 @@ with st.sidebar:
             st.success(f"📄 Loaded: **{uploaded_file.name}**")
             st.caption(f"{len(st.session_state.document_text):,} characters loaded")
         else:
-            st.warning(f"📄 Text extraction failed.")
+            st.warning("📄 Text extraction failed.")
     elif st.session_state.document_name is not None:
         st.session_state.document_name = None
         st.session_state.document_text = None
@@ -119,7 +119,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# Main Interface Welcome
+# Main Interface Welcome Banner (Only visible when chat is empty)
 if not st.session_state.messages:
     greeting = get_time_greeting()
     st.title(f"{greeting}, {st.session_state.user_name}.")
@@ -133,13 +133,15 @@ if not st.session_state.messages:
     with col3:
         st.info("**🖋️ Academic Writing**\n\nRefine research abstracts and language.")
 
-# Render Chat
-for message in st.session_state.messages:
-    avatar = "🔬" if message["role"] == "assistant" else "🧑‍🎓"
-    with st.chat_message(message["role"], avatar=avatar):
-        st.markdown(message["content"])
+# Render Full Chat History
+chat_container = st.container()
+with chat_container:
+    for message in st.session_state.messages:
+        avatar = "🔬" if message["role"] == "assistant" else "🧑‍🎓"
+        with st.chat_message(message["role"], avatar=avatar):
+            st.markdown(message["content"])
 
-# Handle Chat Input
+# User Input Handling
 if user_prompt := st.chat_input("Ask Resha a research query..."):
     api_key = st.secrets.get("GEMINI_API_KEY")
 
@@ -147,54 +149,56 @@ if user_prompt := st.chat_input("Ask Resha a research query..."):
         st.error("API Key missing! Please configure GEMINI_API_KEY in Streamlit Secrets.")
         st.stop()
 
+    # Save User Prompt
     st.session_state.messages.append({"role": "user", "content": user_prompt})
-    with st.chat_message("user", avatar="🧑‍🎓"):
-        st.markdown(user_prompt)
 
-    with st.chat_message("assistant", avatar="🔬"):
-        placeholder = st.empty()
-        with st.spinner("Resha is thinking..."):
-            client = genai.Client(api_key=api_key)
+    # Generate Assistant Reply
+    with chat_container:
+        with st.chat_message("user", avatar="🧑‍🎓"):
+            st.markdown(user_prompt)
 
-            # 1. Dynamically find available models from API if candidate fails
-            target_models = list(CANDIDATE_MODELS)
-            try:
-                available_models = [m.name.replace("models/", "") for m in client.models.list()]
-                # Add flash models found in user's API key scope
-                flash_models = [m for m in available_models if "flash" in m]
-                for fm in flash_models:
-                    if fm not in target_models:
-                        target_models.append(fm)
-            except Exception:
-                pass
+        with st.chat_message("assistant", avatar="🔬"):
+            placeholder = st.empty()
+            with st.spinner("Resha is thinking..."):
+                client = genai.Client(api_key=api_key)
 
-            contents = []
-            for msg in st.session_state.messages:
-                role = "user" if msg["role"] == "user" else "model"
-                contents.append(types.Content(role=role, parts=[types.Part(text=msg["content"])]))
-
-            bot_reply, last_err = None, None
-
-            # 2. Iterate through candidate models dynamically
-            for model_id in target_models:
+                # Dynamic Model Fetching
+                target_models = list(CANDIDATE_MODELS)
                 try:
-                    response = client.models.generate_content(
-                        model=model_id,
-                        contents=contents,
-                        config=types.GenerateContentConfig(
-                            system_instruction=build_system_instruction()
-                        )
-                    )
-                    if response and response.text:
-                        bot_reply = response.text
-                        break
-                except Exception as e:
-                    last_err = e
-                    continue
+                    available_models = [m.name.replace("models/", "") for m in client.models.list()]
+                    flash_models = [m for m in available_models if "flash" in m]
+                    for fm in flash_models:
+                        if fm not in target_models:
+                            target_models.append(fm)
+                except Exception:
+                    pass
 
-        if bot_reply:
-            placeholder.markdown(bot_reply)
-            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
-        else:
-            placeholder.error(f"API Error: {last_err}")
-            st.session_state.messages.pop()
+                contents = []
+                for msg in st.session_state.messages:
+                    role = "user" if msg["role"] == "user" else "model"
+                    contents.append(types.Content(role=role, parts=[types.Part(text=msg["content"])]))
+
+                bot_reply, last_err = None, None
+
+                for model_id in target_models:
+                    try:
+                        response = client.models.generate_content(
+                            model=model_id,
+                            contents=contents,
+                            config=types.GenerateContentConfig(
+                                system_instruction=build_system_instruction()
+                            )
+                        )
+                        if response and response.text:
+                            bot_reply = response.text
+                            break
+                    except Exception as e:
+                        last_err = e
+                        continue
+
+            if bot_reply:
+                st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+                st.rerun()  # Forces immediate UI sync for complete chat history
+            else:
+                placeholder.error(f"API Error: {last_err}")
+                st.session_state.messages.pop()
