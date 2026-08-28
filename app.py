@@ -1,5 +1,7 @@
+import datetime
 import streamlit as st
 from google import genai
+from google.genai import types
 
 # Page Configuration
 st.set_page_config(
@@ -9,7 +11,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS with Green, Yellow, White Theme & Visible Toggle Icon
+# Load API Key from Streamlit Secrets
+api_key = st.secrets.get("GEMINI_API_KEY")
+
+# Custom CSS with Green, Yellow & White Theme
 st.markdown("""
 <style>
     /* Main Background & Fonts */
@@ -18,7 +23,9 @@ st.markdown("""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     
-    /* Make Sidebar Toggle Button Always Visible & Styled like ChatGPT Icon */
+    /* Header & Toggle styling */
+    header {visibility: hidden;}
+    
     button[data-testid="stSidebarCollapseButton"],
     button[data-testid="baseButton-header"] {
         background-color: #064E3B !important;
@@ -36,20 +43,18 @@ st.markdown("""
         color: #064E3B !important;
     }
 
-    /* Sidebar Styling (Deep Emerald Green Theme) */
+    /* Sidebar Styling (Deep Emerald Green) */
     div[data-testid="stSidebar"] {
         background-color: #064E3B !important;
         border-right: 3px solid #10B981;
         padding-top: 1rem;
     }
     
-    /* Sidebar Text & Labels */
     div[data-testid="stSidebar"] *, 
     div[data-testid="stSidebar"] label {
         color: #ECFDF5 !important;
     }
 
-    /* Brand Header */
     .brand-title {
         font-size: 1.8rem;
         font-weight: 800;
@@ -67,7 +72,7 @@ st.markdown("""
         margin-bottom: 1.5rem;
     }
     
-    /* Primary Buttons (Yellow Accent) */
+    /* Primary Buttons */
     div[data-testid="stSidebar"] .stButton > button[kind="primary"] {
         background-color: #FACC15 !important;
         color: #064E3B !important;
@@ -81,17 +86,6 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(250, 204, 21, 0.3);
     }
 
-    /* Secondary Buttons */
-    div[data-testid="stSidebar"] .stButton > button {
-        background-color: #047857 !important;
-        color: #FFFFFF !important;
-        border: 1px solid #10B981 !important;
-        border-radius: 8px !important;
-    }
-    div[data-testid="stSidebar"] .stButton > button:hover {
-        background-color: #059669 !important;
-    }
-
     /* Hero Banner */
     .hero-container {
         text-align: center;
@@ -100,15 +94,15 @@ st.markdown("""
         margin: 0 auto;
     }
     
-    .hero-title {
-        font-size: 2.2rem;
+    .hero-greeting {
+        font-size: 2.3rem;
         font-weight: 800;
         color: #065F46;
         letter-spacing: -0.02em;
     }
     
     .hero-subtitle {
-        font-size: 1.05rem;
+        font-size: 1.1rem;
         color: #374151;
         margin-top: 10px;
         line-height: 1.6;
@@ -158,7 +152,6 @@ st.markdown("""
         line-height: 1.45;
     }
 
-    /* Sidebar Section Headers */
     .sidebar-section {
         font-size: 0.75rem;
         font-weight: 800;
@@ -174,14 +167,28 @@ st.markdown("""
 # Session State Initialization
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "user_name" not in st.session_state:
+    st.session_state.user_name = "Researcher"
 
-# Sidebar UI Implementation
+# Time-based Dynamic Greeting Generator
+def get_time_greeting():
+    current_hour = datetime.datetime.now().hour
+    if current_hour < 12:
+        return "Good morning"
+    elif 12 <= current_hour < 17:
+        return "Good afternoon"
+    else:
+        return "Good evening"
+
+# Sidebar Implementation
 with st.sidebar:
     st.markdown('<div class="brand-title">🔬 Resha</div>', unsafe_allow_html=True)
     st.markdown('<div class="brand-subtitle">AI Academic & Research Assistant</div>', unsafe_allow_html=True)
     
-    # API Key Input
-    api_key = st.text_input("🔑 Gemini API Key", type="password", placeholder="Paste key here...", help="Enter your Google Gemini API key to activate Resha.")
+    # Profile Name Config
+    user_name_input = st.text_input("👤 Your Profile Name", value=st.session_state.user_name)
+    if user_name_input:
+        st.session_state.user_name = user_name_input
     
     if st.button("✨ New Conversation", use_container_width=True, type="primary"):
         st.session_state.messages = []
@@ -201,29 +208,25 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-    st.markdown('<div class="sidebar-section">SYSTEM DIAGNOSTICS</div>', unsafe_allow_html=True)
-    st.markdown("⚡ **Core Engine:** `gemini-3.6-flash`")
-    st.markdown("📑 **Document Indexing:** " + ("`Active`" if uploaded_file else "`Idle`"))
-    st.markdown("🔒 **Security Mode:** `Strict Privacy`")
-
-# Hero Header
+# Dynamic Greeting Header (Claude Style)
 if not st.session_state.messages:
-    st.markdown("""
+    greeting = get_time_greeting()
+    st.markdown(f"""
         <div class="hero-container">
-            <div class="hero-title">How can Resha accelerate your research today?</div>
-            <div class="hero-subtitle">Upload research papers, extract methodologies, synthesize literature, or ask complex technical queries with ease.</div>
+            <div class="hero-greeting">{greeting}, {st.session_state.user_name}.</div>
+            <div class="hero-subtitle">Where shall we push the boundaries of knowledge today? Upload papers, explore citations, or dive into complex academic research.</div>
         </div>
     """, unsafe_allow_html=True)
 
-    # Feature Grid
+    # Feature Cards
     col1, col2, col3 = st.columns(3)
     
     with col1:
         st.markdown("""
             <div class="card-container">
                 <div class="card-icon">📚</div>
-                <div class="card-title">Document Synthesis</div>
-                <div class="card-desc">Upload papers and PDFs to extract key findings, methodologies, and summaries instantly.</div>
+                <div class="card-title">Evidence-Based Research</div>
+                <div class="card-desc">Ask queries and receive verified insights complete with web source links and literature evidence.</div>
             </div>
         """, unsafe_allow_html=True)
         
@@ -231,8 +234,8 @@ if not st.session_state.messages:
         st.markdown("""
             <div class="card-container">
                 <div class="card-icon">🧬</div>
-                <div class="card-title">Concept Explanation</div>
-                <div class="card-desc">Break down intricate academic concepts, algorithms, and mathematical formulations easily.</div>
+                <div class="card-title">Concept & Math Synthesis</div>
+                <div class="card-desc">Break down intricate formulas, algorithms, and methodologies into structured, clear explanations.</div>
             </div>
         """, unsafe_allow_html=True)
         
@@ -240,8 +243,8 @@ if not st.session_state.messages:
         st.markdown("""
             <div class="card-container">
                 <div class="card-icon">🖋️</div>
-                <div class="card-title">Academic Writing</div>
-                <div class="card-desc">Refine research abstracts, structure thesis arguments, and improve academic vocabulary.</div>
+                <div class="card-title">Academic Writing Assistant</div>
+                <div class="card-desc">Formulate literature reviews, refine abstracts, and structure thesis arguments with precision.</div>
             </div>
         """, unsafe_allow_html=True)
 
@@ -254,22 +257,27 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # User Chat Input
-if user_prompt := st.chat_input("Ask Resha a research question or query..."):
+if user_prompt := st.chat_input("Ask Resha a research query..."):
     if not api_key:
-        st.error("Please insert your Gemini API Key in the sidebar to initiate the session.")
+        st.error("API Key missing! Please configure GEMINI_API_KEY in Streamlit Secrets.")
     else:
         st.session_state.messages.append({"role": "user", "content": user_prompt})
         with st.chat_message("user"):
             st.markdown(user_prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("Resha is processing your query..."):
+            with st.spinner("Resha is synthesizing research and fetching sources..."):
                 try:
                     client = genai.Client(api_key=api_key)
+                    # Enable Google Search Grounding for Source Links
                     response = client.models.generate_content(
                         model="gemini-3.6-flash",
-                        contents=f"You are Resha, an academic AI research assistant. Provide concise, structured, professional, and well-cited answers to the following query: {user_prompt}"
+                        contents=f"You are Resha, an advanced academic research assistant. Provide detailed, well-structured answers. Always provide reference web links or citations at the end so the user can verify the sources: {user_prompt}",
+                        config=types.GenerateContentConfig(
+                            tools=[types.Tool(google_search=types.GoogleSearch())]
+                        )
                     )
+                    
                     bot_reply = response.text
                     st.markdown(bot_reply)
                     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
