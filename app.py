@@ -10,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Load API Key safely from Streamlit Secrets
+# Fetch API Key safely from Secrets
 api_key = st.secrets.get("GEMINI_API_KEY")
 
 # Custom UI Styling (Green, Yellow & White Theme)
@@ -21,10 +21,10 @@ st.markdown("""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* Hide Header */
+    /* Hide Top Header Line */
     header {visibility: hidden;}
 
-    /* Sidebar Styling (Deep Emerald Green Theme) */
+    /* Sidebar Custom Styling */
     div[data-testid="stSidebar"] {
         background-color: #064E3B !important;
         border-right: 3px solid #10B981;
@@ -61,7 +61,7 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
-    /* Dynamic Hero Section Styling */
+    /* Hero Banner UI */
     .hero-container {
         text-align: center;
         padding: 2rem 1rem 1.5rem 1rem;
@@ -82,7 +82,7 @@ st.markdown("""
         line-height: 1.6;
     }
 
-    /* Feature Cards Styling */
+    /* Card Containers */
     .card-container {
         background: #FFFFFF;
         border: 2px solid #E5E7EB;
@@ -136,13 +136,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Session State Setup
+# Session State Initialization
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "user_name" not in st.session_state:
     st.session_state.user_name = "Researcher"
 
-# Real-time Dynamic Greeting
+# Time-Based Dynamic Greeting Function
 def get_time_greeting():
     current_hour = datetime.datetime.now().hour
     if current_hour < 12:
@@ -152,7 +152,7 @@ def get_time_greeting():
     else:
         return "Good evening"
 
-# Sidebar Panel
+# Sidebar Structure
 with st.sidebar:
     st.markdown('<div class="brand-title">🔬 Resha</div>', unsafe_allow_html=True)
     st.markdown('<div class="brand-subtitle">AI Academic & Research Assistant</div>', unsafe_allow_html=True)
@@ -175,7 +175,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# Hero Banner UI
+# Initial Hero Welcome UI
 if not st.session_state.messages:
     greeting = get_time_greeting()
     st.markdown(f"""
@@ -211,15 +211,15 @@ if not st.session_state.messages:
             </div>
         """, unsafe_allow_html=True)
 
-# Render Chat History
+# Render Existing Chat History
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# User Chat Input Handling
+# User Chat Submission Handling
 if user_prompt := st.chat_input("Ask Resha a research query..."):
     if not api_key:
-        st.error("API Key missing! Please configure GEMINI_API_KEY in Streamlit Secrets.")
+        st.error("API Key missing! Please make sure GEMINI_API_KEY is configured in Streamlit Secrets.")
     else:
         st.session_state.messages.append({"role": "user", "content": user_prompt})
         with st.chat_message("user"):
@@ -227,40 +227,38 @@ if user_prompt := st.chat_input("Ask Resha a research query..."):
 
         with st.chat_message("assistant"):
             with st.spinner("Resha is synthesizing research and fetching sources..."):
-                client = genai.Client(api_key=api_key)
-                
-                prompt = f"""
-                You are Resha, an academic research assistant. Provide thorough, well-structured, professional answers to the query.
-                At the end of your response, always include a section titled '**Key References & Sources**' listing standard academic literature/sources or verified links for verification.
-                
-                Query: {user_prompt}
-                """
-                
-                # Valid fallback models order for maximum uptime
-                models_to_try = [
-                    "gemini-2.5-flash",
-                    "gemini-2.0-flash",
-                    "gemini-1.5-flash"
-                ]
-                
-                bot_reply = None
-                last_error = None
-                
-                for model_name in models_to_try:
-                    try:
-                        response = client.models.generate_content(
-                            model=model_name,
-                            contents=prompt
-                        )
-                        bot_reply = response.text
-                        if bot_reply:
-                            break
-                    except Exception as err:
-                        last_error = err
-                        continue
+                try:
+                    client = genai.Client(api_key=api_key)
+                    
+                    prompt = f"""
+                    You are Resha, an academic research assistant. Provide thorough, well-structured, professional answers to the query.
+                    At the end of your response, always include a dedicated section titled '**Key References & Sources**' listing standard academic literature/sources or verified web references for verification.
+                    
+                    Query: {user_prompt}
+                    """
+                    
+                    # Target Active Model Endpoints
+                    candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash"]
+                    bot_reply = None
+                    last_err = None
 
-                if bot_reply:
-                    st.markdown(bot_reply)
-                    st.session_state.messages.append({"role": "assistant", "content": bot_reply})
-                else:
-                    st.error(f"Execution Error: {last_error}")
+                    for model_id in candidate_models:
+                        try:
+                            response = client.models.generate_content(
+                                model=model_id,
+                                contents=prompt
+                            )
+                            if response and response.text:
+                                bot_reply = response.text
+                                break
+                        except Exception as e:
+                            last_err = e
+                            continue
+
+                    if bot_reply:
+                        st.markdown(bot_reply)
+                        st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+                    else:
+                        st.error(f"Unable to connect to Gemini API. Error details: {last_err}")
+                except Exception as ex:
+                    st.error(f"Configuration Error: {ex}")
