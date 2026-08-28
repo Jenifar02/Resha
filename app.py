@@ -219,7 +219,7 @@ if not st.session_state.messages:
             </div>
         """, unsafe_allow_html=True)
 
-# Render Chat
+# Render Chat History
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
@@ -227,32 +227,48 @@ for message in st.session_state.messages:
 # User Chat Input
 if user_prompt := st.chat_input("Ask Resha a research query..."):
     if not api_key:
-        st.error("API Key missing in Secrets. Please configure GEMINI_API_KEY.")
+        st.error("API Key missing in Secrets. Please configure GEMINI_API_KEY in Streamlit Secrets.")
     else:
         st.session_state.messages.append({"role": "user", "content": user_prompt})
         with st.chat_message("user"):
             st.markdown(user_prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("Resha is generating your research answer..."):
-                try:
-                    client = genai.Client(api_key=api_key)
-                    
-                    # Optimized prompt to output academic citations directly without heavy Tool API quota consumption
-                    prompt = f"""
-                    You are Resha, an academic research assistant. Provide thorough, well-structured, professional answers to the query.
-                    At the end of your response, always include a section titled '**Key References & Sources**' listing standard relevant academic literature/sources or standard domain references for verification.
-                    
-                    Query: {user_prompt}
-                    """
-                    
-                    response = client.models.generate_content(
-                        model="gemini-3.6-flash",
-                        contents=prompt
-                    )
-                    
-                    bot_reply = response.text
+            with st.spinner("Resha is synthesizing research and fetching sources..."):
+                client = genai.Client(api_key=api_key)
+                
+                prompt = f"""
+                You are Resha, an academic research assistant. Provide thorough, well-structured, professional answers to the query.
+                At the end of your response, always include a section titled '**Key References & Sources**' listing standard academic literature/sources or verified links for verification.
+                
+                Query: {user_prompt}
+                """
+                
+                # List of model fallback priority in case primary model is busy/overloaded (503 error)
+                models_to_try = [
+                    "gemini-2.5-flash",
+                    "gemini-2.0-flash",
+                    "gemini-1.5-flash"
+                ]
+                
+                bot_reply = None
+                last_error = None
+                
+                for model_name in models_to_try:
+                    try:
+                        response = client.models.generate_content(
+                            model=model_name,
+                            contents=prompt
+                        )
+                        bot_reply = response.text
+                        if bot_reply:
+                            break
+                    except Exception as err:
+                        last_error = err
+                        continue
+
+                if bot_reply:
                     st.markdown(bot_reply)
                     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
-                except Exception as e:
-                    st.error(f"Error: {e}")
+                else:
+                    st.error(f"Google API Busy. Please try again in a few seconds. Details: {last_error}")
