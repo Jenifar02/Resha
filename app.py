@@ -1,7 +1,6 @@
 import datetime
 import streamlit as st
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 
 try:
     import pypdf
@@ -13,9 +12,7 @@ try:
 except ImportError:
     DocxDocument = None
 
-# ---------------------------------------------------------------------------
 # Page Configuration
-# ---------------------------------------------------------------------------
 st.set_page_config(
     page_title="Resha - AI Academic & Research Assistant",
     page_icon="🔬",
@@ -23,16 +20,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Supported API models fallback hierarchy
-CANDIDATE_MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash"
-]
-
-# ---------------------------------------------------------------------------
-# Custom UI Styling (Clean Green & Yellow Theme)
-# ---------------------------------------------------------------------------
+# Custom UI Styling
 st.markdown("""
 <style>
     .stApp {
@@ -40,10 +28,8 @@ st.markdown("""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* Hide default header bar */
     header {visibility: hidden;}
 
-    /* Sidebar Styling */
     div[data-testid="stSidebar"] {
         background-color: #064E3B !important;
         border-right: 3px solid #10B981;
@@ -80,7 +66,6 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
-    /* Hero Banner UI */
     .hero-container {
         text-align: center;
         padding: 2rem 1rem 1.5rem 1rem;
@@ -101,7 +86,6 @@ st.markdown("""
         line-height: 1.6;
     }
 
-    /* Feature Cards */
     .card-container {
         background: #FFFFFF;
         border: 2px solid #E5E7EB;
@@ -162,9 +146,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------------------------------------------------------------------
-# Session State Initialization
-# ---------------------------------------------------------------------------
+# Session State
 defaults = {
     "messages": [],
     "user_name": "Researcher",
@@ -175,9 +157,6 @@ for key, value in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 def get_time_greeting():
     current_hour = datetime.datetime.now().hour
     if current_hour < 12:
@@ -206,23 +185,7 @@ def extract_text_from_upload(uploaded_file):
         st.sidebar.error(f"Error reading file: {e}")
     return ""
 
-def build_system_instruction():
-    instruction = (
-        "You are Resha, a professional academic and research assistant. "
-        "Provide thorough, well-structured, accurate answers to research questions. "
-        "At the end of every response, include a dedicated section titled "
-        "'**Key References & Sources**' listing relevant academic literature or credible sources."
-    )
-    if st.session_state.document_text:
-        instruction += (
-            f"\n\nContext from loaded document '{st.session_state.document_name}':\n\n"
-            f"{st.session_state.document_text[:12000]}"
-        )
-    return instruction
-
-# ---------------------------------------------------------------------------
 # Sidebar UI
-# ---------------------------------------------------------------------------
 with st.sidebar:
     st.markdown('<div class="brand-title">🔬 Resha</div>', unsafe_allow_html=True)
     st.markdown('<div class="brand-subtitle">AI Academic & Research Assistant</div>', unsafe_allow_html=True)
@@ -261,9 +224,7 @@ with st.sidebar:
 
     st.markdown('<div class="sidebar-footer">Powered by Google Gemini</div>', unsafe_allow_html=True)
 
-# ---------------------------------------------------------------------------
-# Initial Hero Welcome UI
-# ---------------------------------------------------------------------------
+# Hero UI
 if not st.session_state.messages:
     greeting = get_time_greeting()
     st.markdown(f"""
@@ -299,17 +260,13 @@ if not st.session_state.messages:
             </div>
         """, unsafe_allow_html=True)
 
-# ---------------------------------------------------------------------------
 # Render Existing Chat History
-# ---------------------------------------------------------------------------
 for message in st.session_state.messages:
     avatar = "🔬" if message["role"] == "assistant" else "🧑‍🎓"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
-# ---------------------------------------------------------------------------
-# User Chat Submission Handling
-# ---------------------------------------------------------------------------
+# User Input Handling
 if user_prompt := st.chat_input("Ask Resha a research query..."):
     api_key = st.secrets.get("GEMINI_API_KEY")
 
@@ -324,34 +281,34 @@ if user_prompt := st.chat_input("Ask Resha a research query..."):
     with st.chat_message("assistant", avatar="🔬"):
         placeholder = st.empty()
         with st.spinner("Resha is synthesizing research..."):
-            client = genai.Client(api_key=api_key)
+            try:
+                genai.configure(api_key=api_key)
+                
+                # Instruction and Context Setup
+                system_instruction = "You are Resha, a professional academic and research assistant. Provide thorough, well-structured, accurate answers. Include a '**Key References & Sources**' section at the end."
+                if st.session_state.document_text:
+                    system_instruction += f"\n\nDocument Context ({st.session_state.document_name}):\n" + st.session_state.document_text[:10000]
 
-            contents = []
-            for msg in st.session_state.messages:
-                role = "user" if msg["role"] == "user" else "model"
-                contents.append(types.Content(role=role, parts=[types.Part(text=msg["content"])]))
+                # Direct API Call with Stable Model
+                model = genai.GenerativeModel(
+                    model_name="gemini-1.5-flash",
+                    system_instruction=system_instruction
+                )
+                
+                # Build chat history for API
+                chat_history = []
+                for msg in st.session_state.messages[:-1]:
+                    role = "user" if msg["role"] == "user" else "model"
+                    chat_history.append({"role": role, "parts": [msg["content"]]})
 
-            bot_reply, last_err = None, None
+                chat = model.start_chat(history=chat_history)
+                response = chat.send_message(user_prompt)
 
-            for model_id in CANDIDATE_MODELS:
-                try:
-                    response = client.models.generate_content(
-                        model=model_id,
-                        contents=contents,
-                        config=types.GenerateContentConfig(
-                            system_instruction=build_system_instruction()
-                        )
-                    )
-                    if response and response.text:
-                        bot_reply = response.text
-                        break
-                except Exception as e:
-                    last_err = e
-                    continue
-
-        if bot_reply:
-            placeholder.markdown(bot_reply)
-            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
-        else:
-            placeholder.error(f"Unable to connect to Gemini API. Details: {last_err}")
-            st.session_state.messages.pop()
+                if response and response.text:
+                    placeholder.markdown(response.text)
+                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                else:
+                    placeholder.error("No response generated from model.")
+            except Exception as ex:
+                placeholder.error(f"API Error Details: {ex}")
+                st.session_state.messages.pop()
