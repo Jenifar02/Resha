@@ -10,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Load API Key safely from Secrets
+# Load API Key safely from Streamlit Secrets
 api_key = st.secrets.get("GEMINI_API_KEY")
 
 # Custom UI Styling (Green, Yellow & White Theme)
@@ -20,21 +20,11 @@ st.markdown("""
         background-color: #FAFCFA;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    
-    header {visibility: hidden;}
-    
-    button[data-testid="stSidebarCollapseButton"],
-    button[data-testid="baseButton-header"] {
-        background-color: #064E3B !important;
-        color: #FACC15 !important;
-        border: 2px solid #FACC15 !important;
-        border-radius: 8px !important;
-        padding: 4px 8px !important;
-        visibility: visible !important;
-        display: flex !important;
-        z-index: 999999 !important;
-    }
 
+    /* Hide Header */
+    header {visibility: hidden;}
+
+    /* Sidebar Styling (Deep Emerald Green Theme) */
     div[data-testid="stSidebar"] {
         background-color: #064E3B !important;
         border-right: 3px solid #10B981;
@@ -71,6 +61,7 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
+    /* Dynamic Hero Section Styling */
     .hero-container {
         text-align: center;
         padding: 2rem 1rem 1.5rem 1rem;
@@ -91,6 +82,7 @@ st.markdown("""
         line-height: 1.6;
     }
 
+    /* Feature Cards Styling */
     .card-container {
         background: #FFFFFF;
         border: 2px solid #E5E7EB;
@@ -150,7 +142,7 @@ if "messages" not in st.session_state:
 if "user_name" not in st.session_state:
     st.session_state.user_name = "Researcher"
 
-# Greeting Handler
+# Real-time Dynamic Greeting
 def get_time_greeting():
     current_hour = datetime.datetime.now().hour
     if current_hour < 12:
@@ -160,7 +152,7 @@ def get_time_greeting():
     else:
         return "Good evening"
 
-# Sidebar
+# Sidebar Panel
 with st.sidebar:
     st.markdown('<div class="brand-title">🔬 Resha</div>', unsafe_allow_html=True)
     st.markdown('<div class="brand-subtitle">AI Academic & Research Assistant</div>', unsafe_allow_html=True)
@@ -183,7 +175,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# Hero Section
+# Hero Banner UI
 if not st.session_state.messages:
     greeting = get_time_greeting()
     st.markdown(f"""
@@ -224,10 +216,10 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# User Chat Input
+# User Chat Input Handling
 if user_prompt := st.chat_input("Ask Resha a research query..."):
     if not api_key:
-        st.error("API Key missing in Secrets. Please configure GEMINI_API_KEY in Streamlit Secrets.")
+        st.error("API Key missing! Please configure GEMINI_API_KEY in Streamlit Secrets.")
     else:
         st.session_state.messages.append({"role": "user", "content": user_prompt})
         with st.chat_message("user"):
@@ -244,7 +236,7 @@ if user_prompt := st.chat_input("Ask Resha a research query..."):
                 Query: {user_prompt}
                 """
                 
-                # List of model fallback priority in case primary model is busy/overloaded (503 error)
+                # Valid fallback models order for maximum uptime
                 models_to_try = [
                     "gemini-2.5-flash",
                     "gemini-2.0-flash",
@@ -271,4 +263,4 @@ if user_prompt := st.chat_input("Ask Resha a research query..."):
                     st.markdown(bot_reply)
                     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
                 else:
-                    st.error(f"Google API Busy. Please try again in a few seconds. Details: {last_error}")
+                    st.error(f"Execution Error: {last_error}")
