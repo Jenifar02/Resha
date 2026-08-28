@@ -9,7 +9,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS with Green, Yellow & White Theme
+# Custom CSS with Green, Yellow, White Theme & Visible Toggle Icon
 st.markdown("""
 <style>
     /* Main Background & Fonts */
@@ -18,13 +18,28 @@ st.markdown("""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     
-    /* Hide Default Header */
-    header {visibility: hidden;}
-    
+    /* Make Sidebar Toggle Button Always Visible & Styled like ChatGPT Icon */
+    button[data-testid="stSidebarCollapseButton"],
+    button[data-testid="baseButton-header"] {
+        background-color: #064E3B !important;
+        color: #FACC15 !important;
+        border: 2px solid #FACC15 !important;
+        border-radius: 8px !important;
+        padding: 4px 8px !important;
+        visibility: visible !important;
+        display: flex !important;
+        z-index: 999999 !important;
+    }
+    button[data-testid="stSidebarCollapseButton"]:hover,
+    button[data-testid="baseButton-header"]:hover {
+        background-color: #FACC15 !important;
+        color: #064E3B !important;
+    }
+
     /* Sidebar Styling (Deep Emerald Green Theme) */
     div[data-testid="stSidebar"] {
         background-color: #064E3B !important;
-        border-right: 2px solid #10B981;
+        border-right: 3px solid #10B981;
         padding-top: 1rem;
     }
     
@@ -38,7 +53,7 @@ st.markdown("""
     .brand-title {
         font-size: 1.8rem;
         font-weight: 800;
-        color: #FACC15 !important; /* Bright Yellow */
+        color: #FACC15 !important;
         display: flex;
         align-items: center;
         gap: 10px;
@@ -80,13 +95,13 @@ st.markdown("""
     /* Hero Banner */
     .hero-container {
         text-align: center;
-        padding: 2.5rem 1rem 1.5rem 1rem;
+        padding: 2rem 1rem 1.5rem 1rem;
         max-width: 850px;
         margin: 0 auto;
     }
     
     .hero-title {
-        font-size: 2.3rem;
+        font-size: 2.2rem;
         font-weight: 800;
         color: #065F46;
         letter-spacing: -0.02em;
@@ -99,13 +114,13 @@ st.markdown("""
         line-height: 1.6;
     }
 
-    /* Feature Cards (White with Green Border & Yellow Accents) */
+    /* Feature Cards */
     .card-container {
         background: #FFFFFF;
         border: 2px solid #E5E7EB;
         border-top: 4px solid #10B981;
         border-radius: 12px;
-        padding: 22px;
+        padding: 20px;
         transition: all 0.25s ease;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         height: 100%;
@@ -119,11 +134,11 @@ st.markdown("""
     }
     
     .card-icon {
-        font-size: 1.6rem;
+        font-size: 1.5rem;
         margin-bottom: 10px;
         background: #FEF9C3;
-        width: 45px;
-        height: 45px;
+        width: 42px;
+        height: 42px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -143,7 +158,7 @@ st.markdown("""
         line-height: 1.45;
     }
 
-    /* Sidebar Section Divider Headers */
+    /* Sidebar Section Headers */
     .sidebar-section {
         font-size: 0.75rem;
         font-weight: 800;
