@@ -13,7 +13,9 @@ try:
 except ImportError:
     DocxDocument = None
 
+# ---------------------------------------------------------------------------
 # Page Configuration
+# ---------------------------------------------------------------------------
 st.set_page_config(
     page_title="Resha - AI Academic & Research Assistant",
     page_icon="🔬",
@@ -21,14 +23,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Explicit model list with 'models/' prefix for new SDK compatibility
+# Supported API models fallback hierarchy
 CANDIDATE_MODELS = [
-    "models/gemini-2.5-flash",
-    "models/gemini-2.0-flash",
-    "models/gemini-1.5-flash"
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash"
 ]
 
-# Custom UI Styling
+# ---------------------------------------------------------------------------
+# Custom UI Styling (Clean Green & Yellow Theme)
+# ---------------------------------------------------------------------------
 st.markdown("""
 <style>
     .stApp {
@@ -36,8 +40,10 @@ st.markdown("""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
+    /* Hide default header bar */
     header {visibility: hidden;}
 
+    /* Sidebar Styling */
     div[data-testid="stSidebar"] {
         background-color: #064E3B !important;
         border-right: 3px solid #10B981;
@@ -74,6 +80,7 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
+    /* Hero Banner UI */
     .hero-container {
         text-align: center;
         padding: 2rem 1rem 1.5rem 1rem;
@@ -94,6 +101,7 @@ st.markdown("""
         line-height: 1.6;
     }
 
+    /* Feature Cards */
     .card-container {
         background: #FFFFFF;
         border: 2px solid #E5E7EB;
@@ -154,7 +162,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ---------------------------------------------------------------------------
 # Session State Initialization
+# ---------------------------------------------------------------------------
 defaults = {
     "messages": [],
     "user_name": "Researcher",
@@ -165,6 +175,9 @@ for key, value in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 def get_time_greeting():
     current_hour = datetime.datetime.now().hour
     if current_hour < 12:
@@ -179,18 +192,18 @@ def extract_text_from_upload(uploaded_file):
     try:
         if name.endswith(".pdf"):
             if pypdf is None:
-                st.sidebar.error("PDF support needs the 'pypdf' package.")
+                st.sidebar.error("PDF support requires 'pypdf' package.")
                 return ""
             reader = pypdf.PdfReader(uploaded_file)
             return "\n".join(page.extract_text() or "" for page in reader.pages).strip()
         elif name.endswith(".docx"):
             if DocxDocument is None:
-                st.sidebar.error("DOCX support needs the 'python-docx' package.")
+                st.sidebar.error("DOCX support requires 'python-docx' package.")
                 return ""
             doc = DocxDocument(uploaded_file)
             return "\n".join(p.text for p in doc.paragraphs).strip()
     except Exception as e:
-        st.sidebar.error(f"Couldn't read file: {e}")
+        st.sidebar.error(f"Error reading file: {e}")
     return ""
 
 def build_system_instruction():
@@ -198,18 +211,18 @@ def build_system_instruction():
         "You are Resha, a professional academic and research assistant. "
         "Provide thorough, well-structured, accurate answers to research questions. "
         "At the end of every response, include a dedicated section titled "
-        "'**Key References & Sources**' listing relevant academic literature or "
-        "credible sources for verification."
+        "'**Key References & Sources**' listing relevant academic literature or credible sources."
     )
     if st.session_state.document_text:
         instruction += (
-            f"\n\nThe user uploaded a reference document titled "
-            f"'{st.session_state.document_name}'. Context extracted:\n\n"
+            f"\n\nContext from loaded document '{st.session_state.document_name}':\n\n"
             f"{st.session_state.document_text[:12000]}"
         )
     return instruction
 
+# ---------------------------------------------------------------------------
 # Sidebar UI
+# ---------------------------------------------------------------------------
 with st.sidebar:
     st.markdown('<div class="brand-title">🔬 Resha</div>', unsafe_allow_html=True)
     st.markdown('<div class="brand-subtitle">AI Academic & Research Assistant</div>', unsafe_allow_html=True)
@@ -227,16 +240,16 @@ with st.sidebar:
 
     if uploaded_file is not None:
         if st.session_state.document_name != uploaded_file.name:
-            with st.spinner("Reading document..."):
+            with st.spinner("Processing document..."):
                 extracted = extract_text_from_upload(uploaded_file)
             st.session_state.document_name = uploaded_file.name
             st.session_state.document_text = extracted
             
         if st.session_state.document_text:
             st.success(f"📄 Loaded: **{uploaded_file.name}**")
-            st.caption(f"{len(st.session_state.document_text):,} characters extracted")
+            st.caption(f"{len(st.session_state.document_text):,} characters ready as context")
         else:
-            st.warning(f"📄 **{uploaded_file.name}** uploaded, but no text could be extracted.")
+            st.warning(f"📄 **{uploaded_file.name}** uploaded, but text extraction failed.")
     elif st.session_state.document_name is not None:
         st.session_state.document_name = None
         st.session_state.document_text = None
@@ -248,7 +261,9 @@ with st.sidebar:
 
     st.markdown('<div class="sidebar-footer">Powered by Google Gemini</div>', unsafe_allow_html=True)
 
-# Hero UI
+# ---------------------------------------------------------------------------
+# Initial Hero Welcome UI
+# ---------------------------------------------------------------------------
 if not st.session_state.messages:
     greeting = get_time_greeting()
     st.markdown(f"""
@@ -284,13 +299,17 @@ if not st.session_state.messages:
             </div>
         """, unsafe_allow_html=True)
 
-# Render Chat History
+# ---------------------------------------------------------------------------
+# Render Existing Chat History
+# ---------------------------------------------------------------------------
 for message in st.session_state.messages:
     avatar = "🔬" if message["role"] == "assistant" else "🧑‍🎓"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
-# Input Handling
+# ---------------------------------------------------------------------------
+# User Chat Submission Handling
+# ---------------------------------------------------------------------------
 if user_prompt := st.chat_input("Ask Resha a research query..."):
     api_key = st.secrets.get("GEMINI_API_KEY")
 
@@ -304,7 +323,7 @@ if user_prompt := st.chat_input("Ask Resha a research query..."):
 
     with st.chat_message("assistant", avatar="🔬"):
         placeholder = st.empty()
-        with st.spinner("Resha is synthesizing research and fetching sources..."):
+        with st.spinner("Resha is synthesizing research..."):
             client = genai.Client(api_key=api_key)
 
             contents = []
